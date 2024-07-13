@@ -1,0 +1,2608 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import pickle\n",
+    "import re\n",
+    "import os\n",
+    "\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "%matplotlib inline"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import contractions"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "DATA_DIRECTORY = 'datasets'\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# First dataset is davidson dataset \n",
+    "https://www.kaggle.com/eldrich/hate-speech-offensive-tweets-by-davidson-et-al"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "DAVIDSON_DIR = 'davidson'\n",
+    "RAW_DATA = os.path.join(DATA_DIRECTORY, DAVIDSON_DIR, \"labeled_data.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Decided to pull in column headers from the file instead of explicitly in case the file were to change\n",
+    "tweets = pd.read_csv(RAW_DATA)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Unnamed: 0</th>\n",
+       "      <th>count</th>\n",
+       "      <th>hate_speech</th>\n",
+       "      <th>offensive_language</th>\n",
+       "      <th>neither</th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Unnamed: 0  count  hate_speech  offensive_language  neither  class  \\\n",
+       "0           0      3            0                   0        3      2   \n",
+       "1           1      3            0                   3        0      1   \n",
+       "2           2      3            0                   3        0      1   \n",
+       "3           3      3            0                   2        1      1   \n",
+       "4           4      6            0                   6        0      1   \n",
+       "\n",
+       "                                               tweet  \n",
+       "0  !!! RT @mayasolovely: As a woman you shouldn't...  \n",
+       "1  !!!!! RT @mleew17: boy dats cold...tyga dwn ba...  \n",
+       "2  !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...  \n",
+       "3  !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...  \n",
+       "4  !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...  "
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Rename unnamed column to id\n",
+    "tweets = tweets.rename(columns={'Unnamed: 0':'id'})"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Originally we were going to use an arbitrary index.  However, we are going to use id as a supplimental one \n",
+    "#tweets.index = tweets.id\n",
+    "#tweets = tweets.drop('id', axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>count</th>\n",
+       "      <th>hate_speech</th>\n",
+       "      <th>offensive_language</th>\n",
+       "      <th>neither</th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id  count  hate_speech  offensive_language  neither  class  \\\n",
+       "0   0      3            0                   0        3      2   \n",
+       "1   1      3            0                   3        0      1   \n",
+       "2   2      3            0                   3        0      1   \n",
+       "3   3      3            0                   2        1      1   \n",
+       "4   4      6            0                   6        0      1   \n",
+       "\n",
+       "                                               tweet  \n",
+       "0  !!! RT @mayasolovely: As a woman you shouldn't...  \n",
+       "1  !!!!! RT @mleew17: boy dats cold...tyga dwn ba...  \n",
+       "2  !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...  \n",
+       "3  !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...  \n",
+       "4  !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...  "
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 24783 entries, 0 to 24782\n",
+      "Data columns (total 7 columns):\n",
+      " #   Column              Non-Null Count  Dtype \n",
+      "---  ------              --------------  ----- \n",
+      " 0   id                  24783 non-null  int64 \n",
+      " 1   count               24783 non-null  int64 \n",
+      " 2   hate_speech         24783 non-null  int64 \n",
+      " 3   offensive_language  24783 non-null  int64 \n",
+      " 4   neither             24783 non-null  int64 \n",
+      " 5   class               24783 non-null  int64 \n",
+      " 6   tweet               24783 non-null  object\n",
+      "dtypes: int64(6), object(1)\n",
+      "memory usage: 1.3+ MB\n"
+     ]
+    }
+   ],
+   "source": [
+    "tweets.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Data exploration"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### First make sure the values are all within correct ranges"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id                    0\n",
+       "count                 0\n",
+       "hate_speech           0\n",
+       "offensive_language    0\n",
+       "neither               0\n",
+       "class                 0\n",
+       "tweet                 0\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets[tweets['count'] < 1].count() # No Reviews"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id                    0\n",
+       "count                 0\n",
+       "hate_speech           0\n",
+       "offensive_language    0\n",
+       "neither               0\n",
+       "class                 0\n",
+       "tweet                 0\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets[(tweets['class'] > 2) | (tweets['class'] < 0)].count() # Bad class values"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>count</th>\n",
+       "      <th>hate_speech</th>\n",
+       "      <th>offensive_language</th>\n",
+       "      <th>neither</th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>5</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!!!!!!!\"@T_Madison_x: The shit just...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>6</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!\"@__BrighterDays: I can not just sit up ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>7</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!&amp;#8220;@selfiequeenbri: cause I'm tired of...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>8</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" &amp;amp; you might not get ya bitch back &amp;amp; ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>9</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" @rhythmixx_ :hobbies include: fighting Maria...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>10</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" Keeks is a bitch she curves everyone \" lol I...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>11</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" Murda Gang bitch its Gang Land \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>12</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" So hoes that smoke are losers ? \" yea ... go...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>13</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bad bitches is the only thing that i like \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>14</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bitch get up off me \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>15</th>\n",
+       "      <td>15</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bitch nigga miss me with it \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>16</th>\n",
+       "      <td>16</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bitch plz whatever \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>17</th>\n",
+       "      <td>17</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bitch who do you love \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>18</th>\n",
+       "      <td>18</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" bitches get cut off everyday B \"</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>19</th>\n",
+       "      <td>19</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\" black bottle &amp;amp; a bad bitch \"</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    id  count  hate_speech  offensive_language  neither  class  \\\n",
+       "0    0      3            0                   0        3      2   \n",
+       "1    1      3            0                   3        0      1   \n",
+       "2    2      3            0                   3        0      1   \n",
+       "3    3      3            0                   2        1      1   \n",
+       "4    4      6            0                   6        0      1   \n",
+       "5    5      3            1                   2        0      1   \n",
+       "6    6      3            0                   3        0      1   \n",
+       "7    7      3            0                   3        0      1   \n",
+       "8    8      3            0                   3        0      1   \n",
+       "9    9      3            1                   2        0      1   \n",
+       "10  10      3            0                   3        0      1   \n",
+       "11  11      3            0                   3        0      1   \n",
+       "12  12      3            0                   2        1      1   \n",
+       "13  13      3            0                   3        0      1   \n",
+       "14  14      3            1                   2        0      1   \n",
+       "15  15      3            0                   3        0      1   \n",
+       "16  16      3            0                   3        0      1   \n",
+       "17  17      3            1                   2        0      1   \n",
+       "18  18      3            0                   3        0      1   \n",
+       "19  19      3            0                   3        0      1   \n",
+       "\n",
+       "                                                tweet  \n",
+       "0   !!! RT @mayasolovely: As a woman you shouldn't...  \n",
+       "1   !!!!! RT @mleew17: boy dats cold...tyga dwn ba...  \n",
+       "2   !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...  \n",
+       "3   !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...  \n",
+       "4   !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...  \n",
+       "5   !!!!!!!!!!!!!!!!!!\"@T_Madison_x: The shit just...  \n",
+       "6   !!!!!!\"@__BrighterDays: I can not just sit up ...  \n",
+       "7   !!!!&#8220;@selfiequeenbri: cause I'm tired of...  \n",
+       "8   \" &amp; you might not get ya bitch back &amp; ...  \n",
+       "9   \" @rhythmixx_ :hobbies include: fighting Maria...  \n",
+       "10  \" Keeks is a bitch she curves everyone \" lol I...  \n",
+       "11                 \" Murda Gang bitch its Gang Land \"  \n",
+       "12  \" So hoes that smoke are losers ? \" yea ... go...  \n",
+       "13      \" bad bitches is the only thing that i like \"  \n",
+       "14                            \" bitch get up off me \"  \n",
+       "15                    \" bitch nigga miss me with it \"  \n",
+       "16                             \" bitch plz whatever \"  \n",
+       "17                          \" bitch who do you love \"  \n",
+       "18                 \" bitches get cut off everyday B \"  \n",
+       "19                 \" black bottle &amp; a bad bitch \"  "
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.head(20)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "24782"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.index.max()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Classes are extremely disproportional"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.axes._subplots.AxesSubplot at 0x7f060cb7b898>"
+      ]
+     },
+     "execution_count": 16,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "tweets[['hate_speech', 'offensive_language', 'neither']].sum().plot(kind='bar')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.axes._subplots.AxesSubplot at 0x7f060cacd5f8>"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAAYMAAAD3CAYAAAD/oDhxAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAADh0RVh0U29mdHdhcmUAbWF0cGxvdGxpYiB2ZXJzaW9uMy4yLjEsIGh0dHA6Ly9tYXRwbG90bGliLm9yZy+j8jraAAAS0ElEQVR4nO3df6xfd33f8eerToNQKYrT3FnGP2qX3nRK2GbIVcjUUWXLSJxQ1WGaMlsTdrMIg0i2IlUapvsjCJYp3UrRIrF0ZlhxJpaQEWgsMLiuBUXTZvBNsZw4IfVNcJZrOfZtzEgZVVqH9/64n7sebu69vvd+771fh/t8SEffc97nc875fPVV/Mr5fM73e1NVSJKWt5/pdwckSf1nGEiSDANJkmEgScIwkCRhGEiSmEUYJFmX5OtJnkpyPMlvtfrlSQ4mOdFeV7Z6ktyXZCTJsSTv6JxrR2t/IsmOTv2aJE+0Y+5LksV4s5Kkqc3mzuA88NtVdRVwHXBnkquAXcChqhoEDrVtgJuBwbbsBO6H8fAA7gbeCVwL3D0RIK3N+zvHbe79rUmSZuuSCzWoqtPA6bb+F0meBtYAW4DrW7O9wDeAj7T6gzX+bbbDSS5Lsrq1PVhV5wCSHAQ2J/kG8OaqOtzqDwK3Al+dqV9XXHFFbdiwYQ5vVZL0+OOP/3lVDUyuXzAMupJsAN4OfAtY1YIC4EVgVVtfA7zQOWy01Waqj05Rn9GGDRsYHh6eS/cladlL8vxU9VlPICd5E/Ao8OGqerm7r90FLPrvWiTZmWQ4yfDY2NhiX06Slo1ZhUGSn2U8CD5XVV9s5TNt+If2erbVTwHrOoevbbWZ6munqL9GVe2uqqGqGhoYeM1djiRpnmbzNFGAzwJPV9Xvd3btAyaeCNoBPNapb29PFV0H/KANJx0Abkyysk0c3wgcaPteTnJdu9b2zrkkSUtgNnMGvwq8D3giydFW+x3gXuCRJHcAzwO3tX37gVuAEeBHwO0AVXUuySeAI63dxycmk4EPAQ8Ab2R84njGyWNJ0sLK6/UnrIeGhsoJZEmamySPV9XQ5LrfQJYkGQaSJMNAksQcv3QmvR5t2PWVfndhUZ289z397oJ+CnhnIEkyDCRJhoEkCcNAkoRhIEnCMJAkYRhIkjAMJEkYBpIkDANJEoaBJAnDQJKEYSBJwjCQJDGLMEiyJ8nZJE92ap9PcrQtJyf+NnKSDUn+srPvDzrHXJPkiSQjSe5Lkla/PMnBJCfa68rFeKOSpOnN5s7gAWBzt1BV/6yqNlXVJuBR4Iud3c9O7KuqD3bq9wPvBwbbMnHOXcChqhoEDrVtSdISumAYVNU3gXNT7Wv/d38b8NBM50iyGnhzVR2uqgIeBG5tu7cAe9v63k5dkrREep0zeBdwpqpOdGobk3wnyZ8keVerrQFGO21GWw1gVVWdbusvAqt67JMkaY56/bOX2/jJu4LTwPqqeinJNcAfJrl6tierqkpS0+1PshPYCbB+/fp5dlmSNNm87wySXAL8E+DzE7WqeqWqXmrrjwPPAlcCp4C1ncPXthrAmTaMNDGcdHa6a1bV7qoaqqqhgYGB+XZdkjRJL8NE/xj4blX9/+GfJANJVrT1X2J8ovi5Ngz0cpLr2jzDduCxdtg+YEdb39GpS5KWyGweLX0I+F/AryQZTXJH27WV104c/xpwrD1q+gXgg1U1Mfn8IeC/ACOM3zF8tdXvBd6d5ATjAXNvD+9HkjQPF5wzqKpt09R/c4rao4w/ajpV+2HgbVPUXwJuuFA/JEmLx28gS5IMA0mSYSBJwjCQJGEYSJIwDCRJGAaSJAwDSRKGgSQJw0CShGEgScIwkCRhGEiSMAwkSRgGkiQMA0kShoEkCcNAksTs/gbyniRnkzzZqX0syakkR9tyS2ffR5OMJHkmyU2d+uZWG0myq1PfmORbrf75JJcu5BuUJF3YbO4MHgA2T1H/VFVtast+gCRXAVuBq9sx/ynJiiQrgE8DNwNXAdtaW4Dfbef6ZeD7wB29vCFJ0txdMAyq6pvAuVmebwvwcFW9UlXfA0aAa9syUlXPVdVfAQ8DW5IE+EfAF9rxe4Fb5/geJEk96mXO4K4kx9ow0spWWwO80Gkz2mrT1X8B+D9VdX5SXZK0hOYbBvcDbwU2AaeBTy5Yj2aQZGeS4STDY2NjS3FJSVoW5hUGVXWmql6tqh8Dn2F8GAjgFLCu03Rtq01Xfwm4LMklk+rTXXd3VQ1V1dDAwMB8ui5JmsK8wiDJ6s7me4GJJ432AVuTvCHJRmAQ+DZwBBhsTw5dyvgk876qKuDrwD9tx+8AHptPnyRJ83fJhRokeQi4HrgiyShwN3B9kk1AASeBDwBU1fEkjwBPAeeBO6vq1Xaeu4ADwApgT1Udb5f4CPBwkn8LfAf47IK9O0nSrFwwDKpq2xTlaf/Brqp7gHumqO8H9k9Rf46/GWaSJPWB30CWJBkGkiTDQJKEYSBJwjCQJGEYSJIwDCRJGAaSJAwDSRKGgSQJw0CShGEgScIwkCRhGEiSMAwkSRgGkiQMA0kShoEkiVmEQZI9Sc4mebJT+w9JvpvkWJIvJbms1Tck+cskR9vyB51jrknyRJKRJPclSatfnuRgkhPtdeVivFFJ0vRmc2fwALB5Uu0g8Laq+rvAnwEf7ex7tqo2teWDnfr9wPuBwbZMnHMXcKiqBoFDbVuStIQuGAZV9U3g3KTaH1XV+bZ5GFg70zmSrAbeXFWHq6qAB4Fb2+4twN62vrdTlyQtkYWYM/gXwFc72xuTfCfJnyR5V6utAUY7bUZbDWBVVZ1u6y8CqxagT5KkObikl4OT/BvgPPC5VjoNrK+ql5JcA/xhkqtne76qqiQ1w/V2AjsB1q9fP/+OS5J+wrzvDJL8JvDrwD9vQz9U1StV9VJbfxx4FrgSOMVPDiWtbTWAM20YaWI46ex016yq3VU1VFVDAwMD8+26JGmSeYVBks3AvwZ+o6p+1KkPJFnR1n+J8Yni59ow0MtJrmtPEW0HHmuH7QN2tPUdnbokaYlccJgoyUPA9cAVSUaBuxl/eugNwMH2hOjh9uTQrwEfT/LXwI+BD1bVxOTzhxh/MumNjM8xTMwz3As8kuQO4HngtgV5Z5KkWbtgGFTVtinKn52m7aPAo9PsGwbeNkX9JeCGC/VDkrR4/AayJMkwkCQZBpIkDANJEoaBJAnDQJKEYSBJwjCQJGEYSJIwDCRJGAaSJAwDSRKGgSQJw0CShGEgScIwkCRhGEiSMAwkScwyDJLsSXI2yZOd2uVJDiY50V5XtnqS3JdkJMmxJO/oHLOjtT+RZEenfk2SJ9ox96X9YWVJ0tKY7Z3BA8DmSbVdwKGqGgQOtW2Am4HBtuwE7ofx8ADuBt4JXAvcPREgrc37O8dNvpYkaRHNKgyq6pvAuUnlLcDetr4XuLVTf7DGHQYuS7IauAk4WFXnqur7wEFgc9v35qo6XFUFPNg5lyRpCfQyZ7Cqqk639ReBVW19DfBCp91oq81UH52iLklaIgsygdz+j74W4lwzSbIzyXCS4bGxscW+nCQtG72EwZk2xEN7Pdvqp4B1nXZrW22m+top6q9RVburaqiqhgYGBnrouiSpq5cw2AdMPBG0A3isU9/eniq6DvhBG046ANyYZGWbOL4ROND2vZzkuvYU0fbOuSRJS+CS2TRK8hBwPXBFklHGnwq6F3gkyR3A88Btrfl+4BZgBPgRcDtAVZ1L8gngSGv38aqamJT+EONPLL0R+GpbJElLZFZhUFXbptl1wxRtC7hzmvPsAfZMUR8G3jabvkiSFp7fQJYkGQaSJMNAkoRhIEnCMJAkYRhIkjAMJEkYBpIkDANJEoaBJAnDQJKEYSBJwjCQJGEYSJIwDCRJGAaSJAwDSRKGgSSJHsIgya8kOdpZXk7y4SQfS3KqU7+lc8xHk4wkeSbJTZ365lYbSbKr1zclSZqbWf0N5KlU1TPAJoAkK4BTwJeA24FPVdXvddsnuQrYClwNvAX44yRXtt2fBt4NjAJHkuyrqqfm2zdJ0tzMOwwmuQF4tqqeTzJdmy3Aw1X1CvC9JCPAtW3fSFU9B5Dk4dbWMJCkJbJQcwZbgYc623clOZZkT5KVrbYGeKHTZrTVpqu/RpKdSYaTDI+NjS1Q1yVJPYdBkkuB3wD+eyvdD7yV8SGk08Ane73GhKraXVVDVTU0MDCwUKeVpGVvIYaJbgb+tKrOAEy8AiT5DPDltnkKWNc5bm2rMUNdkrQEFmKYaBudIaIkqzv73gs82db3AVuTvCHJRmAQ+DZwBBhMsrHdZWxtbSVJS6SnO4MkP8f4U0Af6JT/fZJNQAEnJ/ZV1fEkjzA+MXweuLOqXm3nuQs4AKwA9lTV8V76JUmam57CoKr+L/ALk2rvm6H9PcA9U9T3A/t76Yskaf78BrIkyTCQJBkGkiQMA0kShoEkCcNAkoRhIEnCMJAkYRhIkjAMJEkYBpIkDANJEoaBJAnDQJKEYSBJwjCQJGEYSJIwDCRJLEAYJDmZ5IkkR5MMt9rlSQ4mOdFeV7Z6ktyXZCTJsSTv6JxnR2t/IsmOXvslSZq9hboz+IdVtamqhtr2LuBQVQ0Ch9o2wM3AYFt2AvfDeHgAdwPvBK4F7p4IEEnS4lusYaItwN62vhe4tVN/sMYdBi5Lshq4CThYVeeq6vvAQWDzIvVNkjTJQoRBAX+U5PEkO1ttVVWdbusvAqva+hrghc6xo602Xf0nJNmZZDjJ8NjY2AJ0XZIEcMkCnOMfVNWpJH8LOJjku92dVVVJagGuQ1XtBnYDDA0NLcg5JUkLcGdQVafa61ngS4yP+Z9pwz+017Ot+SlgXefwta02XV2StAR6CoMkP5fk5yfWgRuBJ4F9wMQTQTuAx9r6PmB7e6roOuAHbTjpAHBjkpVt4vjGVpMkLYFeh4lWAV9KMnGu/1ZVX0tyBHgkyR3A88Btrf1+4BZgBPgRcDtAVZ1L8gngSGv38ao612PfJEmz1FMYVNVzwN+bov4ScMMU9QLunOZce4A9vfRHkjQ/fgNZkmQYSJIMA0kShoEkiYX50pkkLZoNu77S7y4sqpP3vqffXQC8M5AkYRhIkjAMJEkYBpIkDANJEoaBJAnDQJKEYSBJwjCQJGEYSJIwDCRJGAaSJAwDSRI9hEGSdUm+nuSpJMeT/FarfyzJqSRH23JL55iPJhlJ8kySmzr1za02kmRXb29JkjRXvfyE9Xngt6vqT5P8PPB4koNt36eq6ve6jZNcBWwFrgbeAvxxkivb7k8D7wZGgSNJ9lXVUz30TZI0B/MOg6o6DZxu63+R5GlgzQyHbAEerqpXgO8lGQGubftGquo5gCQPt7aGgSQtkQWZM0iyAXg78K1WuivJsSR7kqxstTXAC53DRlttuvpU19mZZDjJ8NjY2EJ0XZLEAoRBkjcBjwIfrqqXgfuBtwKbGL9z+GSv15hQVburaqiqhgYGBhbqtJK07PX0Zy+T/CzjQfC5qvoiQFWd6ez/DPDltnkKWNc5fG2rMUNdkrQEenmaKMBngaer6vc79dWdZu8Fnmzr+4CtSd6QZCMwCHwbOAIMJtmY5FLGJ5n3zbdfkqS56+XO4FeB9wFPJDnaar8DbEuyCSjgJPABgKo6nuQRxieGzwN3VtWrAEnuAg4AK4A9VXW8h35Jkuaol6eJ/geQKXbtn+GYe4B7pqjvn+k4SdLi8hvIkiTDQJJkGEiSMAwkSRgGkiQMA0kSPX4DeTnZsOsr/e7Cojp573v63QVJfeSdgSTJMJAkGQaSJAwDSRKGgSQJw0CShGEgScIwkCRhGEiSMAwkSRgGkiQuojBIsjnJM0lGkuzqd38kaTm5KMIgyQrg08DNwFXAtiRX9bdXkrR8XBRhAFwLjFTVc1X1V8DDwJY+90mSlo2L5Ses1wAvdLZHgXdObpRkJ7Czbf4wyTNL0Ld+uQL486W6WH53qa60LPjZvb79tH9+vzhV8WIJg1mpqt3A7n73YykkGa6qoX73Q3PnZ/f6tlw/v4tlmOgUsK6zvbbVJElL4GIJgyPAYJKNSS4FtgL7+twnSVo2Lophoqo6n+Qu4ACwAthTVcf73K1+WxbDYT+l/Oxe35bl55eq6ncfJEl9drEME0mS+sgwkCQZBpKki2QCeblL8rcZ/8b1mlY6Beyrqqf71ytpeWj//a0BvlVVP+zUN1fV1/rXs6XlnUGfJfkI4z+/EeDbbQnwkD/Y9/qW5PZ+90EzS/KvgMeAfwk8maT7Mzj/rj+96g+fJuqzJH8GXF1Vfz2pfilwvKoG+9Mz9SrJ/66q9f3uh6aX5Ang71fVD5NsAL4A/Neq+o9JvlNVb+9rB5eQw0T992PgLcDzk+qr2z5dxJIcm24XsGop+6J5+ZmJoaGqOpnkeuALSX6R8c9w2TAM+u/DwKEkJ/ibH+tbD/wycFffeqXZWgXcBHx/Uj3A/1z67miOziTZVFVHAdodwq8De4C/09+uLS3DoM+q6mtJrmT8Z7y7E8hHqurV/vVMs/Rl4E0T/5h0JfnG0ndHc7QdON8tVNV5YHuS/9yfLvWHcwaSJJ8mkiQZBpIkDANJEoaBJAnDQJIE/D8Xl4fKV1RoWAAAAABJRU5ErkJggg==\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "tweets['class'].value_counts().sort_index().plot(kind='bar')\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Controversial ones\n",
+    "required more people to vote on them"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>count</th>\n",
+       "      <th>hate_speech</th>\n",
+       "      <th>offensive_language</th>\n",
+       "      <th>neither</th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>80</th>\n",
+       "      <td>80</td>\n",
+       "      <td>9</td>\n",
+       "      <td>0</td>\n",
+       "      <td>7</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@BestProAdvice: The facts on tattoos...tattoo...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>91</th>\n",
+       "      <td>92</td>\n",
+       "      <td>6</td>\n",
+       "      <td>1</td>\n",
+       "      <td>5</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@CHlLDHOODRUINER: when ur teacher tells u tha...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>127</th>\n",
+       "      <td>128</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@GTM_Al: Ya side bitch gotta know it's rules ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>133</th>\n",
+       "      <td>134</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@Gizzy_Jones94: If she kiss u with her eyes o...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>137</th>\n",
+       "      <td>138</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@HBMostDope: Ugly bitches be like I'm my own ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>151</th>\n",
+       "      <td>153</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@JasminePore: If you dressed up as a cat for ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>152</th>\n",
+       "      <td>154</td>\n",
+       "      <td>4</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@Jewelxo: Can pornhub just get a gaming strea...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>155</th>\n",
+       "      <td>157</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@KazAtta: @1TAKEHOV Oh man.. \"its 5 am, you o...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>171</th>\n",
+       "      <td>173</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@LeBronVuitton: A loyal bitch from the burbs ...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      id  count  hate_speech  offensive_language  neither  class  \\\n",
+       "4      4      6            0                   6        0      1   \n",
+       "80    80      9            0                   7        2      1   \n",
+       "91    92      6            1                   5        0      1   \n",
+       "127  128      6            0                   6        0      1   \n",
+       "133  134      6            0                   6        0      1   \n",
+       "137  138      6            0                   6        0      1   \n",
+       "151  153      6            0                   6        0      1   \n",
+       "152  154      4            0                   4        0      1   \n",
+       "155  157      6            0                   6        0      1   \n",
+       "171  173      6            0                   6        0      1   \n",
+       "\n",
+       "                                                 tweet  \n",
+       "4    !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...  \n",
+       "80   \"@BestProAdvice: The facts on tattoos...tattoo...  \n",
+       "91   \"@CHlLDHOODRUINER: when ur teacher tells u tha...  \n",
+       "127  \"@GTM_Al: Ya side bitch gotta know it's rules ...  \n",
+       "133  \"@Gizzy_Jones94: If she kiss u with her eyes o...  \n",
+       "137  \"@HBMostDope: Ugly bitches be like I'm my own ...  \n",
+       "151  \"@JasminePore: If you dressed up as a cat for ...  \n",
+       "152  \"@Jewelxo: Can pornhub just get a gaming strea...  \n",
+       "155  \"@KazAtta: @1TAKEHOV Oh man.. \"its 5 am, you o...  \n",
+       "171  \"@LeBronVuitton: A loyal bitch from the burbs ...  "
+      ]
+     },
+     "execution_count": 18,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets[tweets['count'] > 3].head(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id                    1976\n",
+       "count                 1976\n",
+       "hate_speech           1976\n",
+       "offensive_language    1976\n",
+       "neither               1976\n",
+       "class                 1976\n",
+       "tweet                 1976\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 19,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets[tweets['count'] > 3].count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'\"@CaelanG15: \"@22EdHam: @CaelanG15 that nigga was eating that hoe lol\" Hell Yea lol john Paul\" nigga said john paul.. http://t.co/OSIpBKPr9h'"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.iloc[92].tweet"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Second dataset to balance out the data some\n",
+    "Random kaggle hate speech dataset: https://www.kaggle.com/mohit28rawat/hate-speech\n",
+    "\n",
+    "The point of this dataset is to get more inoffensive and hate speech examples to add to the overall dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "HATE_SPEECH_DIR = 'hate-speech'\n",
+    "RAW_DATA2 = os.path.join(DATA_DIRECTORY, HATE_SPEECH_DIR, \"labels.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "hs_tweets = pd.read_csv(RAW_DATA2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Index</th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>@guccitwist i should be killed for being a whi...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2</td>\n",
+       "      <td>RT @DipOnline I be closing my eyes and shit so...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>3</td>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>4</td>\n",
+       "      <td>@LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5</td>\n",
+       "      <td>the army life _‰ã¢ÌöÌÏ</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Index                                              Tweet Class\n",
+       "0      1  @guccitwist i should be killed for being a whi...     1\n",
+       "1      2  RT @DipOnline I be closing my eyes and shit so...     1\n",
+       "2      3  Par billi se.....kabhi nhi.I hate cat https://...     0\n",
+       "3      4  @LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...     1\n",
+       "4      5                             the army life _‰ã¢ÌöÌÏ     2"
+      ]
+     },
+     "execution_count": 23,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create new index outside of the range of the previous one\n",
+    "hs_tweets['id'] = hs_tweets['Index'] + 100000"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Index</th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>@guccitwist i should be killed for being a whi...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100001</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2</td>\n",
+       "      <td>RT @DipOnline I be closing my eyes and shit so...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100002</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>3</td>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100003</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>4</td>\n",
+       "      <td>@LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100004</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5</td>\n",
+       "      <td>the army life _‰ã¢ÌöÌÏ</td>\n",
+       "      <td>2</td>\n",
+       "      <td>100005</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Index                                              Tweet Class      id\n",
+       "0      1  @guccitwist i should be killed for being a whi...     1  100001\n",
+       "1      2  RT @DipOnline I be closing my eyes and shit so...     1  100002\n",
+       "2      3  Par billi se.....kabhi nhi.I hate cat https://...     0  100003\n",
+       "3      4  @LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...     1  100004\n",
+       "4      5                             the army life _‰ã¢ÌöÌÏ     2  100005"
+      ]
+     },
+     "execution_count": 25,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "hs_tweets = hs_tweets.drop('Index', axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>@guccitwist i should be killed for being a whi...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100001</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>RT @DipOnline I be closing my eyes and shit so...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100002</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100003</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>@LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100004</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>the army life _‰ã¢ÌöÌÏ</td>\n",
+       "      <td>2</td>\n",
+       "      <td>100005</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                               Tweet Class      id\n",
+       "0  @guccitwist i should be killed for being a whi...     1  100001\n",
+       "1  RT @DipOnline I be closing my eyes and shit so...     1  100002\n",
+       "2  Par billi se.....kabhi nhi.I hate cat https://...     0  100003\n",
+       "3  @LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...     1  100004\n",
+       "4                             the army life _‰ã¢ÌöÌÏ     2  100005"
+      ]
+     },
+     "execution_count": 27,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "1     24026\n",
+       "2     14351\n",
+       "0      5489\n",
+       "on        2\n",
+       "n         2\n",
+       "Name: Class, dtype: int64"
+      ]
+     },
+     "execution_count": 28,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets['Class'].value_counts()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 43870 entries, 0 to 43869\n",
+      "Data columns (total 3 columns):\n",
+      " #   Column  Non-Null Count  Dtype \n",
+      "---  ------  --------------  ----- \n",
+      " 0   Tweet   43870 non-null  object\n",
+      " 1   Class   43870 non-null  object\n",
+      " 2   id      43870 non-null  int64 \n",
+      "dtypes: int64(1), object(2)\n",
+      "memory usage: 1.0+ MB\n"
+     ]
+    }
+   ],
+   "source": [
+    "hs_tweets.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>14135</th>\n",
+       "      <td>Mohabbat Tum Se Nafrat Hai Episode 11 18 june ...</td>\n",
+       "      <td>n</td>\n",
+       "      <td>114136</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>16854</th>\n",
+       "      <td>pagal person..solder ko bolte hai ki jate q ho...</td>\n",
+       "      <td>on</td>\n",
+       "      <td>116855</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>28366</th>\n",
+       "      <td>6yrs me nikah</td>\n",
+       "      <td>n</td>\n",
+       "      <td>128367</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>29713</th>\n",
+       "      <td>I agree with @shoaib100mph</td>\n",
+       "      <td>on</td>\n",
+       "      <td>129714</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                   Tweet Class      id\n",
+       "14135  Mohabbat Tum Se Nafrat Hai Episode 11 18 june ...     n  114136\n",
+       "16854  pagal person..solder ko bolte hai ki jate q ho...    on  116855\n",
+       "28366                                      6yrs me nikah     n  128367\n",
+       "29713                         I agree with @shoaib100mph    on  129714"
+      ]
+     },
+     "execution_count": 30,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets[~hs_tweets['Class'].str.isnumeric()]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Drop the 4 and reset the type\n",
+    "hs_tweets = hs_tweets[hs_tweets['Class'].str.isnumeric()]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "hs_tweets.Class = hs_tweets.Class.astype('int32')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.axes._subplots.AxesSubplot at 0x7f060c5f7358>"
+      ]
+     },
+     "execution_count": 33,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "hs_tweets['Class'].value_counts().sort_index().plot(kind='bar')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Tweet    object\n",
+       "Class     int32\n",
+       "id        int64\n",
+       "dtype: object"
+      ]
+     },
+     "execution_count": 34,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.dtypes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>@guccitwist i should be killed for being a whi...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100001</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>RT @DipOnline I be closing my eyes and shit so...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100002</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100003</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>@LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100004</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>the army life _‰ã¢ÌöÌÏ</td>\n",
+       "      <td>2</td>\n",
+       "      <td>100005</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                               Tweet  Class      id\n",
+       "0  @guccitwist i should be killed for being a whi...      1  100001\n",
+       "1  RT @DipOnline I be closing my eyes and shit so...      1  100002\n",
+       "2  Par billi se.....kabhi nhi.I hate cat https://...      0  100003\n",
+       "3  @LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...      1  100004\n",
+       "4                             the army life _‰ã¢ÌöÌÏ      2  100005"
+      ]
+     },
+     "execution_count": 35,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100003</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>Some niggas like fendi.</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100006</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>19</th>\n",
+       "      <td>Modiji ji andhaKanun badlo,70sal purana abi cc...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100020</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>33</th>\n",
+       "      <td>@KylahTernauxx ARM WRESTLING IS FOR LITTLE FAG...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100034</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>44</th>\n",
+       "      <td>RT @No_ahhh23: Happy birthday faggot! &amp;#128536...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100045</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>54</th>\n",
+       "      <td>idk what games james played on it. if it playe...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100055</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>65</th>\n",
+       "      <td>@yung_davaron porch monkey!!1!</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100066</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>71</th>\n",
+       "      <td>kya faltu bayaan hai.. Bengal sabhi ka rape ho...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100072</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>73</th>\n",
+       "      <td>Khud ko rape karwake...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100074</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>83</th>\n",
+       "      <td>@IAmSteveHarvey Answering something wrong in a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100084</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>95</th>\n",
+       "      <td>Itne sidhe hote to baat hi kucch or hoti. Pata...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100096</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>96</th>\n",
+       "      <td>I do da flow in a temple today fo nuttin. And ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100097</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>98</th>\n",
+       "      <td>Bharat jaise bimar democracy me @RanaAyyub ka ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100099</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>111</th>\n",
+       "      <td>what nigga gets mad when you claim him? _Ì«ÌÐ‰...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100112</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>124</th>\n",
+       "      <td>this guy is the biggest faggot omfg</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100125</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>128</th>\n",
+       "      <td>Lmao! You niggas regionally picky about hoes n...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100129</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>131</th>\n",
+       "      <td>@Roscoedash lmao, soft ass nigga trying to act...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100132</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>136</th>\n",
+       "      <td>Oh fun thing \\nYesterday we ate lunch at this ...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100137</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>145</th>\n",
+       "      <td>@RedNationBlogga fuck those faggots</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100146</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>163</th>\n",
+       "      <td>subtweeting faggots and some princesses that a...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100164</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                 Tweet  Class      id\n",
+       "2    Par billi se.....kabhi nhi.I hate cat https://...      0  100003\n",
+       "5                              Some niggas like fendi.      0  100006\n",
+       "19   Modiji ji andhaKanun badlo,70sal purana abi cc...      0  100020\n",
+       "33   @KylahTernauxx ARM WRESTLING IS FOR LITTLE FAG...      0  100034\n",
+       "44   RT @No_ahhh23: Happy birthday faggot! &#128536...      0  100045\n",
+       "54   idk what games james played on it. if it playe...      0  100055\n",
+       "65                      @yung_davaron porch monkey!!1!      0  100066\n",
+       "71   kya faltu bayaan hai.. Bengal sabhi ka rape ho...      0  100072\n",
+       "73                             Khud ko rape karwake...      0  100074\n",
+       "83   @IAmSteveHarvey Answering something wrong in a...      0  100084\n",
+       "95   Itne sidhe hote to baat hi kucch or hoti. Pata...      0  100096\n",
+       "96   I do da flow in a temple today fo nuttin. And ...      0  100097\n",
+       "98   Bharat jaise bimar democracy me @RanaAyyub ka ...      0  100099\n",
+       "111  what nigga gets mad when you claim him? _Ì«ÌÐ‰...      0  100112\n",
+       "124                this guy is the biggest faggot omfg      0  100125\n",
+       "128  Lmao! You niggas regionally picky about hoes n...      0  100129\n",
+       "131  @Roscoedash lmao, soft ass nigga trying to act...      0  100132\n",
+       "136  Oh fun thing \\nYesterday we ate lunch at this ...      0  100137\n",
+       "145                @RedNationBlogga fuck those faggots      0  100146\n",
+       "163  subtweeting faggots and some princesses that a...      0  100164"
+      ]
+     },
+     "execution_count": 36,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets[hs_tweets['Class'] == 0][:20]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'The girl skipping school ain\\'t nothing but 16 y/o and just made me say in my head \"bitch u supposed to be in school\" had to catch myself'"
+      ]
+     },
+     "execution_count": 37,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.loc[10].Tweet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 43866 entries, 0 to 43869\n",
+      "Data columns (total 3 columns):\n",
+      " #   Column  Non-Null Count  Dtype \n",
+      "---  ------  --------------  ----- \n",
+      " 0   Tweet   43866 non-null  object\n",
+      " 1   Class   43866 non-null  int32 \n",
+      " 2   id      43866 non-null  int64 \n",
+      "dtypes: int32(1), int64(1), object(1)\n",
+      "memory usage: 2.4+ MB\n"
+     ]
+    }
+   ],
+   "source": [
+    "hs_tweets.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Tweet</th>\n",
+       "      <th>Class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "Empty DataFrame\n",
+       "Columns: [Tweet, Class, id]\n",
+       "Index: []"
+      ]
+     },
+     "execution_count": 39,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets[hs_tweets['Tweet'].str.len() < 1]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Rename columns to be uniform with first dataset\n",
+    "hs_tweets = hs_tweets.rename(columns={'Tweet':'tweet', 'Class': 'class'})"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Now we need to combine the datasets\n",
+    "\n",
+    "We are going to only combine the hate speech and innocuous tweets but leave out offensive ones in hopes of balancing out the large class"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>count</th>\n",
+       "      <th>hate_speech</th>\n",
+       "      <th>offensive_language</th>\n",
+       "      <th>neither</th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>6</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id  count  hate_speech  offensive_language  neither  class  \\\n",
+       "0   0      3            0                   0        3      2   \n",
+       "1   1      3            0                   3        0      1   \n",
+       "2   2      3            0                   3        0      1   \n",
+       "3   3      3            0                   2        1      1   \n",
+       "4   4      6            0                   6        0      1   \n",
+       "\n",
+       "                                               tweet  \n",
+       "0  !!! RT @mayasolovely: As a woman you shouldn't...  \n",
+       "1  !!!!! RT @mleew17: boy dats cold...tyga dwn ba...  \n",
+       "2  !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...  \n",
+       "3  !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...  \n",
+       "4  !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...  "
+      ]
+     },
+     "execution_count": 41,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet</th>\n",
+       "      <th>class</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>@guccitwist i should be killed for being a whi...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100001</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>RT @DipOnline I be closing my eyes and shit so...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100002</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>Par billi se.....kabhi nhi.I hate cat https://...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>100003</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>@LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>100004</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>the army life _‰ã¢ÌöÌÏ</td>\n",
+       "      <td>2</td>\n",
+       "      <td>100005</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                               tweet  class      id\n",
+       "0  @guccitwist i should be killed for being a whi...      1  100001\n",
+       "1  RT @DipOnline I be closing my eyes and shit so...      1  100002\n",
+       "2  Par billi se.....kabhi nhi.I hate cat https://...      0  100003\n",
+       "3  @LILBTHEBASEDGOD \"I'm a dirty ass nigga with a...      1  100004\n",
+       "4                             the army life _‰ã¢ÌöÌÏ      2  100005"
+      ]
+     },
+     "execution_count": 42,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "hs_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### We only want more hate speech examples (class == 0) and ordinary examples (class == 2) from the second dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "hs_tweets_reduced = hs_tweets[hs_tweets['class'] != 1]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Pulling only the 3 columns we want to us from the davidson dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "davidon_reduced = tweets[['class', 'tweet', 'id']]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   class                                              tweet  id\n",
+       "0      2  !!! RT @mayasolovely: As a woman you shouldn't...   0\n",
+       "1      1  !!!!! RT @mleew17: boy dats cold...tyga dwn ba...   1\n",
+       "2      1  !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...   2\n",
+       "3      1  !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...   3\n",
+       "4      1  !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...   4"
+      ]
+     },
+     "execution_count": 45,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "davidon_reduced.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "combined = pd.concat([davidon_reduced, hs_tweets_reduced])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "class    44623\n",
+       "tweet    44623\n",
+       "id       44623\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 47,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.axes._subplots.AxesSubplot at 0x7f060c3ea240>"
+      ]
+     },
+     "execution_count": 48,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "combined['class'].value_counts().sort_index().plot(kind=\"bar\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Index has duplicates\n",
+    "\n",
+    "Later found if this isn't fixed it really hurts performance"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>201</th>\n",
+       "      <td>1</td>\n",
+       "      <td>\"@Nicholas_ted33: Kobe stay talking trash. But...</td>\n",
+       "      <td>203</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>201</th>\n",
+       "      <td>2</td>\n",
+       "      <td>Looks as if Federal Gun Laws to be proposed th...</td>\n",
+       "      <td>100202</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     class                                              tweet      id\n",
+       "201      1  \"@Nicholas_ted33: Kobe stay talking trash. But...     203\n",
+       "201      2  Looks as if Federal Gun Laws to be proposed th...  100202"
+      ]
+     },
+     "execution_count": 50,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.loc[201]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "class    44623\n",
+       "tweet    44623\n",
+       "id       44623\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 51,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 53,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Force reset the index\n",
+    "combined = combined.reset_index(drop=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>class</th>\n",
+       "      <th>tweet</th>\n",
+       "      <th>id</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2</td>\n",
+       "      <td>!!! RT @mayasolovely: As a woman you shouldn't...</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!! RT @mleew17: boy dats cold...tyga dwn ba...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!! RT @C_G_Anderson: @viva_based she lo...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1</td>\n",
+       "      <td>!!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   class                                              tweet  id\n",
+       "0      2  !!! RT @mayasolovely: As a woman you shouldn't...   0\n",
+       "1      1  !!!!! RT @mleew17: boy dats cold...tyga dwn ba...   1\n",
+       "2      1  !!!!!!! RT @UrKindOfBrand Dawg!!!! RT @80sbaby...   2\n",
+       "3      1  !!!!!!!!! RT @C_G_Anderson: @viva_based she lo...   3\n",
+       "4      1  !!!!!!!!!!!!! RT @ShenikaRoberts: The shit you...   4"
+      ]
+     },
+     "execution_count": 54,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "class    44623\n",
+       "tweet    44623\n",
+       "id       44623\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 55,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "class                                                    1\n",
+       "tweet    \"@Nicholas_ted33: Kobe stay talking trash. But...\n",
+       "id                                                     203\n",
+       "Name: 201, dtype: object"
+      ]
+     },
+     "execution_count": 56,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "combined.loc[201]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Create pickle dump of the dataframe"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "DUMP_FILE = \"combined_data.p\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pickle.dump(combined, open(os.path.join(DATA_DIRECTORY, DUMP_FILE), \"wb\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
